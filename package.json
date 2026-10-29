@@ -1,0 +1,10 @@
+{
+  "name": "project-task-tracker",
+  "version": "1.0.0",
+  "description": "Full-stack Project & Task Tracker (TaskPulse)",
+  "scripts": {
+    "install:all": "npm --prefix backend install && npm --prefix frontend install",
+    "build": "npm --prefix frontend install && npm --prefix frontend run build && npm --prefix backend install && cd backend && npx prisma db push && npm run prisma:seed",
+    "start": "cd backend && node -r tsx/cjs src/server.ts"
+  }
+}

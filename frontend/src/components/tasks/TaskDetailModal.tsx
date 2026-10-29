@@ -75,8 +75,31 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       setErrorMessage(null);
       setIsConflict(false);
       setIsEditing(false);
+      setAiSummary(null);
+      setAiEstimate(null);
     }
   }, [task]);
+
+  const handleGenerateAiInsights = async () => {
+    if (!task) return;
+    try {
+      setIsLoadingAi(true);
+      const [summaryRes, estimateRes] = await Promise.all([
+        aiApi.summarizeTask(task.id),
+        aiApi.estimateEffort({
+          title: task.title,
+          description: task.description || undefined,
+          priority: task.priority,
+        }),
+      ]);
+      setAiSummary(summaryRes);
+      setAiEstimate(estimateRes);
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Failed to generate AI insights');
+    } finally {
+      setIsLoadingAi(false);
+    }
+  };
 
   if (!task) return null;
 
@@ -321,6 +344,22 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             <History className="h-3.5 w-3.5" />
             <span>Activity Log</span>
           </button>
+          <button
+            onClick={() => {
+              setActiveTab('ai');
+              if (!aiSummary) {
+                handleGenerateAiInsights();
+              }
+            }}
+            className={`flex items-center gap-1.5 px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${
+              activeTab === 'ai'
+                ? 'border-purple-600 text-purple-600'
+                : 'border-transparent text-purple-600 hover:text-purple-700'
+            }`}
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            <span>AI Copilot Insights</span>
+          </button>
         </div>
 
         {/* Tab 1: Details */}
@@ -507,6 +546,74 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   </span>
                 </div>
               ))
+            )}
+          </div>
+        )}
+
+        {/* Tab 4: AI Copilot Insights */}
+        {activeTab === 'ai' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-3 bg-purple-50 border border-purple-200 rounded-xl">
+              <div className="flex items-center gap-2 text-purple-900">
+                <Sparkles className="h-5 w-5 text-purple-600" />
+                <span className="text-sm font-bold">AI Task Intelligence & Effort Estimates</span>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleGenerateAiInsights}
+                isLoading={isLoadingAi}
+                className="text-xs bg-white text-purple-700 border-purple-300 hover:bg-purple-50"
+              >
+                Regenerate AI Analysis
+              </Button>
+            </div>
+
+            {isLoadingAi ? (
+              <div className="flex items-center justify-center h-48">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600" />
+              </div>
+            ) : (
+              aiSummary && aiEstimate && (
+                <div className="space-y-4 text-xs">
+                  {/* Executive Summary */}
+                  <div className="p-3.5 bg-white border border-slate-200 rounded-xl space-y-1.5 shadow-xs">
+                    <span className="font-bold text-slate-900 block text-sm">Contextual Summary</span>
+                    <p className="text-slate-700 leading-relaxed">{aiSummary.executiveSummary}</p>
+                    <p className="text-slate-500 italic mt-1">{aiSummary.discussionContext}</p>
+                  </div>
+
+                  {/* Effort Estimation Grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-center">
+                      <span className="text-slate-500 block text-[10px] uppercase font-bold">Story Points</span>
+                      <span className="text-xl font-extrabold text-indigo-600">{aiEstimate.suggestedStoryPoints} pts</span>
+                    </div>
+                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-center">
+                      <span className="text-slate-500 block text-[10px] uppercase font-bold">Est. Hours</span>
+                      <span className="text-xl font-extrabold text-blue-600">{aiEstimate.estimatedHours} hrs</span>
+                    </div>
+                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-center">
+                      <span className="text-slate-500 block text-[10px] uppercase font-bold">Complexity</span>
+                      <span className="text-xs font-bold text-slate-800 block mt-1">{aiEstimate.complexityLevel}</span>
+                    </div>
+                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-center">
+                      <span className="text-slate-500 block text-[10px] uppercase font-bold">Reviewers</span>
+                      <span className="text-xl font-extrabold text-emerald-600">{aiEstimate.recommendedReviewers} peers</span>
+                    </div>
+                  </div>
+
+                  {/* Action Items */}
+                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                    <span className="font-bold text-slate-900 block">Suggested Action Items</span>
+                    <ul className="space-y-1 list-disc list-inside text-slate-700">
+                      {aiSummary.suggestedActionItems.map((item, idx) => (
+                        <li key={idx}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )
             )}
           </div>
         )}

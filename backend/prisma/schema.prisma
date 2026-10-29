@@ -1,0 +1,135 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id            String               @id @default(uuid())
+  name          String
+  email         String               @unique
+  passwordHash  String
+  role          String               @default("USER")
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  projectsOwned Project[]            @relation("ProjectOwner")
+  memberships   ProjectMember[]
+  reportedTasks Task[]               @relation("TaskReporter")
+  assignedTasks Task[]               @relation("TaskAssignee")
+  comments      Comment[]
+  activityLogs  ActivityLog[]
+  resetTokens   PasswordResetToken[]
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Project {
+  id           String          @id @default(uuid())
+  projectName  String
+  projectKey   String          @unique
+  description  String?
+  ownerId      String
+  owner        User            @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  taskCounter  Int             @default(0)
+  startDate    DateTime?
+  endDate      DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  members      ProjectMember[]
+  tasks        Task[]
+  activityLogs ActivityLog[]
+
+  @@index([ownerId])
+}
+
+model ProjectMember {
+  id        String   @id @default(uuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String   @default("MEMBER")
+  joinedAt  DateTime @default(now())
+
+  @@unique([projectId, userId])
+  @@index([userId])
+  @@index([projectId])
+}
+
+model Task {
+  id          String        @id @default(uuid())
+  taskKey     String        @unique
+  taskNumber  Int
+  projectId   String
+  project     Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  priority    String        @default("MEDIUM")
+  status      String        @default("TODO")
+  assigneeId  String?
+  assignee    User?         @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  reporterId  String
+  reporter    User          @relation("TaskReporter", fields: [reporterId], references: [id], onDelete: Restrict)
+  dueDate     DateTime?
+  version     Int           @default(1)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  comments     Comment[]
+  activityLogs ActivityLog[]
+
+  @@unique([projectId, taskNumber])
+  @@index([projectId])
+  @@index([assigneeId])
+  @@index([status])
+  @@index([dueDate])
+  @@index([title])
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([taskId])
+  @@index([userId])
+}
+
+model ActivityLog {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  taskId    String?
+  task      Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  action    String
+  entity    String
+  entityId  String
+  metadata  String?
+  createdAt DateTime @default(now())
+
+  @@index([projectId])
+  @@index([taskId])
+  @@index([userId])
+}
